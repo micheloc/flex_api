@@ -1,0 +1,107 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "version": "0.0.1",
+    "title": "",
+    "description": "Essa API será utilizada para carregar dados direto do banco de dados.",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  }, 
+  "paths": { 
+    "/fetch_sales": { 
+      "get": {
+        "tags": [""],
+        "summary": "",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "dt_inicial",
+            "required": true,
+            "schema": {
+               "$ref": "#/components/schemas/sales/properties/dt_inicial"
+            }
+          }, 
+          {
+            "in": "query",
+            "name": "dt_final",
+            "required": true,
+            "schema": {
+               "$ref": "#/components/schemas/sales/properties/dt_final"
+            }
+          }, 
+          {
+            "in": "query",
+            "name": "idstatus",
+            "required": true,
+            "schema": {
+               "$ref": "#/components/schemas/sales/properties/idstatus"
+            }
+          }, 
+          {
+            "in": "query",
+            "name": "idcategoria",
+            "required": true,
+            "schema": {
+               "$ref": "#/components/schemas/sales/properties/idcategoria"
+            }
+          },
+          {
+            "in": "query",
+            "name": "idusuario",
+            "required": true,
+            "schema": {
+               "$ref": "#/components/schemas/sales/properties/idusuario"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Failed. Misunderstood Request."
+          },
+          "404": {
+            "description": "Failed. Safra not found."
+          }
+        }
+      }
+    }
+  },
+  "components": { 
+    "schemas": { 
+      "sales" : { 
+        "type": "object", 
+        "properties": { 
+          "dt_inicial": { 
+            "type": "string", 
+            "example": "2024-04-01",
+            "description": "Este campo é referente a data inicial de vendas. ('PDV')."
+          }, 
+          "dt_final": { 
+            "type": "string", 
+            "example": "2024-04-10",
+            "description": "Este campo é referente a data final de vendas. ('PDV')."
+          }, 
+          "idstatus": { 
+            "type": "string", 
+            "example": "D04F662A-7C3B-494F-A79F-DC284517B549",
+            "description": "Este campo é referente ao id do status da venda. ('PDV')."
+          }, 
+          "idcategoria": { 
+            "type": "string", 
+            "example": "F44D2216-3264-45CC-8176-487AECAE5FC7",
+            "description": "Este campo é referente ao id da categoria do produto que deseja filtrar. "
+          }, 
+          "idusuario": { 
+            "type": "string", 
+            "example": "C1D0876C-A419-419F-90C8-A6DE9989BB7C",
+            "description": "Este campo é referente ao id do usuário que finalizou o PDV."
+          }
+        }
+      }
+    }
+  }
+}

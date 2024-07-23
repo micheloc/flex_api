@@ -1,0 +1,6 @@
+bokeh==3.5.0
+Flask==3.0.3
+Flask-Cors==4.0.1
+flask-restplus==0.13.0
+flask-swagger-ui==4.11.1
+pyodbc==5.1.0
