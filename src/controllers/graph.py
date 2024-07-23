@@ -1,5 +1,6 @@
 import io
 import base64
+import locale
 import matplotlib.pyplot as plt
 
 from flask import abort, jsonify, request, Blueprint
@@ -12,6 +13,7 @@ from bokeh.models import PrintfTickFormatter, LabelSet, ColumnDataSource
 from io import BytesIO
 from decimal import Decimal
 
+locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8') # Define a localidade para português brasileiro
 
 def calculate_figure_size(num_items):
   # Ajusta o tamanho com base no número de itens
@@ -37,6 +39,8 @@ def fetch_sales():
   produtos = []
   quantidade = []
   valor_produto = []
+  valor_formatado = []
+
 
   for item in response:
     descricao = item['descricao']
@@ -47,6 +51,13 @@ def fetch_sales():
     produtos.append(descricao + ' - ' + modelo)
     quantidade.append(qtd)
     valor_produto.append(valor)
+
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+    valor_formatado.append(locale.currency(valor, grouping=True))
+
+
+  # Calcular a soma total dos valores
+  total_valor = sum(valor_produto)
 
   # Ajustar o tamanho da figura com base no número de itens
   num_items = len(produtos)
@@ -67,7 +78,7 @@ def fetch_sales():
 
   # Adicionar rótulos com quantidade à direita das barras
   for i, (qtd, valor) in enumerate(zip(quantidade, valor_produto)):
-      ax.text(valor + max(valor_produto) * 0.02, i, f'{qtd}', va='center', color='black', fontsize=10)
+    ax.text(valor + max(valor_produto) * 0.02, i, f'{qtd}', va='center', color='black', fontsize=10)
 
   # Configuração dos eixos e título
   ax.set_xlabel('Valor')
