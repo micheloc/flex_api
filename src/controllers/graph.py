@@ -1,111 +1,109 @@
 import io
-import base64
 import locale
-import matplotlib.pyplot as plt
+import openpyxl
 
-from flask import abort, jsonify, request, Blueprint
+from decimal import Decimal
+from flask import abort, request, make_response, Blueprint
+from openpyxl.chart import BarChart, Reference
 from Service.generate_sales_graph import generatesalesgraph
 
-from flask import request, abort, Response, Blueprint
-from bokeh.plotting import figure, output_file, show
-from bokeh.io import export_png
-from bokeh.models import PrintfTickFormatter, LabelSet, ColumnDataSource
-from io import BytesIO
-from decimal import Decimal
-
-locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8') # Define a localidade para português brasileiro
+locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')  # Define a localidade para português brasileiro
 
 def calculate_figure_size(num_items):
-  # Ajusta o tamanho com base no número de itens
-  width = 10
-  height = max(6, num_items * 0.5)  # Ajusta a altura com base na quantidade de dados
-  return (width, height)
+    # Ajusta o tamanho com base no número de itens
+    width = 10
+    height = max(6, num_items * 0.5)  # Ajusta a altura com base na quantidade de dados
+    return (width, height)
 
 REQUEST_API = Blueprint('graph', __name__)
 
 @REQUEST_API.route('/fetch_sales', methods=['GET'])
-def fetch_sales(): 
-  dt_inicial = request.args.get('dt_inicial')
-  dt_final = request.args.get('dt_final')
-  idstatus = request.args.get('idstatus')
-  idcategoria = request.args.get('idcategoria')
-  idusuario = request.args.get('idusuario')
+def fetch_sales():
+    dt_inicial = request.args.get('dt_inicial')
+    dt_final = request.args.get('dt_final')
+    idstatus = request.args.get('idstatus')
+    idcategoria = request.args.get('idcategoria')
+    idusuario = request.args.get('idusuario')
 
-  if not dt_inicial and not dt_final and not idstatus and not idcategoria and not idusuario:
-    abort(400, description="Parâmetros insuficientes")
+    if not dt_inicial and not dt_final and not idstatus and not idcategoria and not idusuario:
+        abort(400, description="Parâmetros insuficientes")
 
-  response = generatesalesgraph(dt_inicial, dt_final, idstatus, idcategoria, idusuario)
+    response = generatesalesgraph(dt_inicial, dt_final, idstatus, idcategoria, idusuario)
 
-  produtos = []
-  quantidade = []
-  valor_produto = []
-  valor_formatado = []
+    produtos = []
+    quantidade = []
+    valor_produto = []
+    valor_formatado = []
 
+    for item in response:
+        descricao = item['descricao']
+        modelo = item['modelo']
+        qtd = int(Decimal(item['qtd']))
+        valor = float(Decimal(item['valor']))
 
-  for item in response:
-    descricao = item['descricao']
-    modelo = item['modelo']
-    qtd = int(Decimal(item['qtd']))
-    valor = float(Decimal(item['valor']))
+        produtos.append(descricao + ' - ' + modelo)
+        quantidade.append(qtd)
+        valor_produto.append(valor)
 
-    produtos.append(descricao + ' - ' + modelo)
-    quantidade.append(qtd)
-    valor_produto.append(valor)
+        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+        valor_formatado.append(locale.currency(valor, grouping=True))
 
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-    valor_formatado.append(locale.currency(valor, grouping=True))
+    # Criar uma planilha Excel em memória
+    workbook = openpyxl.Workbook()
 
+    # Primeira aba para o gráfico
+    chart_sheet = workbook.active
+    chart_sheet.title = 'Gráfico de Vendas'
 
-  # Calcular a soma total dos valores
-  total_valor = sum(valor_produto)
+    # Segunda aba para os dados
+    data_sheet = workbook.create_sheet(title='Dados de Vendas')
 
-  # Ajustar o tamanho da figura com base no número de itens
-  num_items = len(produtos)
-  figsize = (12, num_items * 0.5)  # Ajustar o tamanho da figura conforme o número de itens
+    # Escrever o cabeçalho do XLSX na segunda aba
+    data_sheet.append(['Produto', 'Quantidade', 'Valor Formatado'])
 
-  # Criar o gráfico com Matplotlib
-  fig, ax = plt.subplots(figsize=figsize)
+    # Escrever os dados no XLSX na segunda aba
+    for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
+        data_sheet.append([prod, qtd, val_fmt])
 
-  # Adicionar as barras horizontais
-  bars = ax.barh(produtos, valor_produto, color='blue')
+    # Adicionar gráfico de barras horizontais na primeira aba
+    chart = BarChart()
+    chart.type = "bar"
+    chart.style = 10
+    chart.title = "Quantidade de Vendas"
+    chart.x_axis.title = "Produto"
+    chart.y_axis.title = "Quantidade"
 
-  # Adicionar rótulos ao centro das barras
-  for bar in bars:
-    width = bar.get_width()
-    label = f'{width:.2f}'  # Texto com a quantidade formatado
-    ax.text(width / 2, bar.get_y() + bar.get_height() / 2, label,
-            ha='center', va='center', color='white', fontsize=10)
+    data = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
+    categories = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(categories)
+    chart.y_axis.majorGridlines = None
 
-  # Adicionar rótulos com quantidade à direita das barras
-  for i, (qtd, valor) in enumerate(zip(quantidade, valor_produto)):
-    ax.text(valor + max(valor_produto) * 0.02, i, f'{qtd}', va='center', color='black', fontsize=10)
+    # Adicionar a legenda
+    chart.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
+    
+    # Ajustar tamanho do gráfico
+    chart.width = 30  # Ajuste conforme necessário
+    chart.height = 15  # Ajuste conforme necessário
 
-  # Configuração dos eixos e título
-  ax.set_xlabel('Valor')
-  ax.set_ylabel('Produtos')
-  ax.set_title('Quantidade Vendida dos Produtos')
+    chart_sheet.add_chart(chart, "A1")
 
-  # Ajustar o espaço das margens
-  plt.tight_layout()
+    # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
+    chart_sheet.sheet_view.showGridLines = False
 
-  # Salvando o gráfico em um buffer em memória
-  buf = io.BytesIO()
-  plt.savefig(buf, format='png', bbox_inches='tight')  # bbox_inches='tight' para ajustar o layout
-  buf.seek(0)
+    # Salvar o arquivo XLSX em memória usando BytesIO
+    output = io.BytesIO()
+    workbook.save(output)
+    xlsx_data = output.getvalue()
+    output.close()
 
-  # Convertendo o buffer PNG para base64
-  img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    # Criar uma resposta Flask para download do arquivo XLSX
+    response = make_response(xlsx_data)
+    response.headers['Content-Disposition'] = 'attachment; filename=sales_data.xlsx'
+    response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
-  # Fechando o gráfico
-  plt.close(fig)
-
-  # Retornando a base64 como resposta JSON
-  return jsonify({'image': img_base64})
+    return response
 
 @REQUEST_API.route('/get-all', methods=['GET'])
-def get(): 
-  return "retorna muitas coias"
-
-
-
-
+def get():
+    return "retorna muitas coias"
