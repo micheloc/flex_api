@@ -76,6 +76,7 @@ def fetch_sales():
     categories = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(categories)
+    
     chart.y_axis.majorGridlines = None
 
     # Adicionar a legenda
@@ -84,7 +85,6 @@ def fetch_sales():
     # Ajustar tamanho do gráfico
     chart.width = 30  # Ajuste conforme necessário
     chart.height = 15  # Ajuste conforme necessário
-
 
     chart_sheet.add_chart(chart, "A1")
 
