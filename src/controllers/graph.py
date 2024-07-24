@@ -5,6 +5,8 @@ import openpyxl
 from decimal import Decimal
 from flask import abort, request, make_response, Blueprint
 from openpyxl.chart import BarChart, Reference
+from openpyxl.chart.label import DataLabel
+
 from Service.generate_sales_graph import generatesalesgraph
 
 locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')  # Define a localidade para português brasileiro
@@ -78,10 +80,11 @@ def fetch_sales():
 
     # Adicionar a legenda
     chart.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
-    
+
     # Ajustar tamanho do gráfico
     chart.width = 30  # Ajuste conforme necessário
     chart.height = 15  # Ajuste conforme necessário
+
 
     chart_sheet.add_chart(chart, "A1")
 
