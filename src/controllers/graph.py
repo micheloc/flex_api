@@ -69,9 +69,6 @@ def fetch_sales():
     chart = BarChart()
     chart.type = "bar"
     chart.style = 10
-    chart.title = "Quantidade de Vendas"
-    chart.x_axis.title = "Produto"
-    chart.y_axis.title = "Quantidade"
 
     data = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
     categories = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
