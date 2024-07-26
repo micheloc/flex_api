@@ -50,7 +50,7 @@ def create_chart_sheet(workbook, data_sheet, start_index, end_index, sheet_index
 
     chart_qtd.y_axis.majorGridlines = None
     chart_qtd.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
-    chart_qtd.width = 25  # Ajuste conforme necessário
+    chart_qtd.width = 30  # Ajuste conforme necessário
     chart_qtd.height = calculate_chart_height(len(produtos))  # Ajuste conforme necessário
     chart_qtd.barWidth = 10  # Ajustar a largura das barras para criar espaço extra
     chart_qtd.gapWidth = 60  # Ajustar o espaçamento entre as barras
@@ -79,7 +79,7 @@ def create_chart_sheet(workbook, data_sheet, start_index, end_index, sheet_index
 
     chart_valor.y_axis.majorGridlines = None
     chart_valor.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
-    chart_valor.width = 25  # Ajuste conforme necessário
+    chart_valor.width = 30  # Ajuste conforme necessário
     chart_valor.height = calculate_chart_height(len(produtos))  # Ajuste conforme necessário
     chart_valor.barWidth = 10  # Ajustar a largura das barras para criar espaço extra
     chart_valor.gapWidth = 60  # Ajustar o espaçamento entre as barras
@@ -137,8 +137,9 @@ def fetch_sales():
 
     # Criar uma planilha Excel em memória
     workbook = openpyxl.Workbook()
-    data_sheet = workbook.active
-    data_sheet.title = 'Dados de Vendas'
+
+    # Adicionar a aba de dados de vendas
+    data_sheet = workbook.create_sheet(title='Dados de Vendas')
 
     # Escrever o cabeçalho do XLSX
     data_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
@@ -150,8 +151,8 @@ def fetch_sales():
     # Ajustar a largura das colunas na aba de dados
     adjust_column_width(data_sheet)
 
-    # Dividir os dados em partes de 100 itens
-    chunk_size = 75
+    # Dividir os dados em partes de 75 itens
+    chunk_size = 30
     num_chunks = (len(produtos) + chunk_size - 1) // chunk_size
 
     for i in range(num_chunks):
@@ -161,13 +162,16 @@ def fetch_sales():
         create_chart_sheet(workbook, data_sheet, start_index, end_index, i + 1)
 
     # Adicionar a tabela de vendas final na última aba
-    final_sheet = workbook.create_sheet(title='Resumo Final')
     final_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
     for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
         final_sheet.append([prod, qtd, val, val_fmt])
 
     # Ajustar a largura das colunas na aba final
     adjust_column_width(final_sheet)
+
+    # Mover a planilha 'Dados de Vendas' para o final
+    data_sheet.sheet_view.showGridLines = False
+    workbook.move_sheet(data_sheet, offset=-1)  # Move 'Dados de Vendas' para o final
 
     # Salvar o arquivo XLSX em memória usando BytesIO
     output = io.BytesIO()
