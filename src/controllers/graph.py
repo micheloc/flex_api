@@ -3,6 +3,7 @@ import locale
 import openpyxl
 
 from decimal import Decimal
+from datetime import datetime  
 from flask import abort, request, make_response, Blueprint
 from openpyxl.chart import BarChart, Reference
 from openpyxl.chart.label import DataLabel
@@ -87,6 +88,9 @@ def fetch_sales():
   # Ajustar tamanho do gráfico
   chart.width = 30  # Ajuste conforme necessário
   chart.height = 15  # Ajuste conforme necessário
+
+  chart.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
+  chart.gapWidth = 100  # Ajustar o espaçamento entre as barras
 
   chart_sheet.add_chart(chart, "A1")
 
