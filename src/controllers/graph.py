@@ -14,6 +14,13 @@ locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')  # Define a localidade para portu
 
 REQUEST_API = Blueprint('graph', __name__)
 
+# Função para calcular a altura do gráfico com base no número de itens
+def calculate_chart_height(num_items):
+  base_height = 15  # Altura base do gráfico
+  height_per_item = 2  # Altura adicional por item
+  return base_height + height_per_item * (num_items // 5)  # Ajusta a altura dependendo do número de itens
+
+
 @REQUEST_API.route('/fetch_sales', methods=['GET'])
 def fetch_sales():
     dt_inicial = request.args.get('dt_inicial')
@@ -45,6 +52,11 @@ def fetch_sales():
         locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
         valor_formatado.append(locale.currency(valor, grouping=True))
 
+
+    # Calcular a altura dos gráficos
+    chart_height = calculate_chart_height(len(produtos))
+
+
     # Criar uma planilha Excel em memória
     workbook = openpyxl.Workbook()
 
@@ -65,8 +77,7 @@ def fetch_sales():
     # Adicionar gráfico de barras para a quantidade
     chart_qtd = BarChart()
     chart_qtd.type = "bar"
-    chart_qtd.style = 11
-    chart_qtd.shape = 4  # Estilo de barra
+    chart_qtd.style = 10
 
     categories_ref = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
     qtd_ref = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
@@ -88,7 +99,7 @@ def fetch_sales():
 
     # Ajustar tamanho do gráfico
     chart_qtd.width = 40  # Ajuste conforme necessário
-    chart_qtd.height = 15  # Ajuste conforme necessário
+    chart_qtd.height = chart_height  # Ajuste conforme necessário
 
     chart_qtd.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
     chart_qtd.gapWidth = 100  # Ajustar o espaçamento entre as barras
@@ -98,8 +109,7 @@ def fetch_sales():
     # Adicionar gráfico de barras para o valor
     chart_valor = BarChart()
     chart_valor.type = "bar"
-    chart_valor.style = 11
-    chart_valor.shape = 4  # Estilo de barra
+    chart_valor.style = 10
 
     valor_ref = Reference(data_sheet, min_col=3, min_row=1, max_row=len(valor_produto) + 1)
 
@@ -120,12 +130,12 @@ def fetch_sales():
 
     # Ajustar tamanho do gráfico
     chart_valor.width = 40  # Ajuste conforme necessário
-    chart_valor.height = 15  # Ajuste conforme necessário
+    chart_valor.height = chart_height  # Ajuste conforme necessário
 
     chart_valor.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
     chart_valor.gapWidth = 100  # Ajustar o espaçamento entre as barras
 
-    chart_sheet.add_chart(chart_valor, "T2")  # Ajustar a posição para não sobrepor o gráfico de quantidade
+    chart_sheet.add_chart(chart_valor, "U2")  # Ajustar a posição para não sobrepor o gráfico de quantidade
 
     # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
     chart_sheet.sheet_view.showGridLines = False
