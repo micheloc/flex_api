@@ -51,26 +51,31 @@ def fetch_sales():
 
   # Primeira aba para o gráfico
   chart_sheet = workbook.active
-  chart_sheet.title = 'Gráfico de Vendas'
 
   # Segunda aba para os dados
   data_sheet = workbook.create_sheet(title='Dados de Vendas')
 
   # Escrever o cabeçalho do XLSX na segunda aba
-  data_sheet.append(['Produto', 'Quantidade', 'Valor Formatado'])
+  data_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
 
   # Escrever os dados no XLSX na segunda aba
   for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
-    data_sheet.append([prod, qtd, val_fmt])
+    data_sheet.append([prod, qtd, val, val_fmt])
 
   # Adicionar gráfico de barras horizontais na primeira aba
   chart = BarChart()
   chart.type = "bar"
-  chart.style = 10
+  chart.style = 11
+  chart.shape = 4  # Estilo de barra
 
-  data = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
+  qtd = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
+  vlr = Reference(data_sheet, min_col=3, min_row=1, max_row=len(valor_produto) + 1)
+
   categories = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
-  chart.add_data(data, titles_from_data=True)
+
+  chart.add_data(qtd, titles_from_data=True,from_rows=False)
+  chart.add_data(vlr, titles_from_data=True,from_rows=False)
+
   chart.set_categories(categories)
   
   # Centralizar os rótulos no centro da barra
@@ -79,6 +84,7 @@ def fetch_sales():
     series.dLbls.showVal = True
     series.dLbls.showCatName = False
     series.dLbls.dLblPos = 'ctr'  # Posicionar no centro da barra
+    
 
   chart.y_axis.majorGridlines = None
 
@@ -92,7 +98,7 @@ def fetch_sales():
   chart.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
   chart.gapWidth = 100  # Ajustar o espaçamento entre as barras
 
-  chart_sheet.add_chart(chart, "A1")
+  chart_sheet.add_chart(chart, "B2")
 
   # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
   chart_sheet.sheet_view.showGridLines = False
