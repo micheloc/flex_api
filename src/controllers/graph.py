@@ -16,10 +16,93 @@ REQUEST_API = Blueprint('graph', __name__)
 
 # Função para calcular a altura do gráfico com base no número de itens
 def calculate_chart_height(num_items):
-  base_height = 15  # Altura base do gráfico
-  height_per_item = 2  # Altura adicional por item
-  return base_height + height_per_item * (num_items // 5)  # Ajusta a altura dependendo do número de itens
+    base_height = 15  # Altura base do gráfico
+    height_per_item = 2  # Altura adicional por item
+    return base_height + height_per_item * (num_items // 5)  # Ajusta a altura dependendo do número de itens
 
+def create_chart_sheet(workbook, data_sheet, start_index, end_index, sheet_index):
+    chart_sheet = workbook.create_sheet(title=f'Gráfico {sheet_index}')
+
+    produtos = [row[0] for row in data_sheet.iter_rows(min_row=start_index, max_row=end_index, min_col=1, max_col=1)]
+    quantidade = [row[0] for row in data_sheet.iter_rows(min_row=start_index, max_row=end_index, min_col=2, max_col=2)]
+    valor_produto = [row[0] for row in data_sheet.iter_rows(min_row=start_index, max_row=end_index, min_col=3, max_col=3)]
+    valor_formatado = [row[0] for row in data_sheet.iter_rows(min_row=start_index, max_row=end_index, min_col=4, max_col=4)]
+
+    # Adicionar gráfico de barras para a quantidade
+    chart_qtd = BarChart()
+    chart_qtd.type = "bar"
+    chart_qtd.style = 10
+
+    chart_qtd.title = "Gráfico referente à quantidade de venda"
+
+    categories_ref = Reference(data_sheet, min_col=1, min_row=start_index, max_row=end_index)
+    qtd_ref = Reference(data_sheet, min_col=2, min_row=start_index, max_row=end_index)
+
+    chart_qtd.add_data(qtd_ref, titles_from_data=True)
+    chart_qtd.set_categories(categories_ref)
+
+    # Centralizar os rótulos no centro da barra
+    for series in chart_qtd.series:
+        series.dLbls = DataLabelList()
+        series.dLbls.showVal = True
+        series.dLbls.showCatName = False
+        series.dLbls.dLblPos = 'outEnd'  # Posicionar no centro da barra
+
+    chart_qtd.y_axis.majorGridlines = None
+    chart_qtd.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
+    chart_qtd.width = 25  # Ajuste conforme necessário
+    chart_qtd.height = calculate_chart_height(len(produtos))  # Ajuste conforme necessário
+    chart_qtd.barWidth = 10  # Ajustar a largura das barras para criar espaço extra
+    chart_qtd.gapWidth = 60  # Ajustar o espaçamento entre as barras
+
+    chart_sheet.add_chart(chart_qtd, "B2")
+
+    # Adicionar gráfico de barras para o valor
+    chart_valor = BarChart()
+    chart_valor.type = "bar"
+    chart_valor.style = 10
+
+    # Adicionar título ao gráfico de valor
+    chart_valor.title = "Gráfico referente ao valor do produto"
+
+    valor_ref = Reference(data_sheet, min_col=3, min_row=start_index, max_row=end_index)
+
+    chart_valor.add_data(valor_ref, titles_from_data=False)
+    chart_valor.set_categories(categories_ref)
+
+    # Centralizar os rótulos no centro da barra
+    for series in chart_valor.series:
+        series.dLbls = DataLabelList()
+        series.dLbls.showVal = True
+        series.dLbls.showCatName = False
+        series.dLbls.dLblPos = 'outEnd'  # Posicionar no centro da barra
+
+    chart_valor.y_axis.majorGridlines = None
+    chart_valor.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
+    chart_valor.width = 25  # Ajuste conforme necessário
+    chart_valor.height = calculate_chart_height(len(produtos))  # Ajuste conforme necessário
+    chart_valor.barWidth = 10  # Ajustar a largura das barras para criar espaço extra
+    chart_valor.gapWidth = 60  # Ajustar o espaçamento entre as barras
+
+    chart_sheet.add_chart(chart_valor, "W2")  # Ajustar a posição para não sobrepor o gráfico de quantidade
+
+    # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
+    chart_sheet.sheet_view.showGridLines = False
+
+def adjust_column_width(sheet):
+    for col in sheet.columns:
+        max_length = 0
+        column = col[0].column_letter  # Obtém a letra da coluna
+        
+        for cell in col:
+            try:
+                if cell.value is not None and len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        
+        adjusted_width = max_length + 2  # Adiciona um pouco de espaço extra
+        sheet.column_dimensions[column].width = adjusted_width
 
 @REQUEST_API.route('/fetch_sales', methods=['GET'])
 def fetch_sales():
@@ -52,93 +135,39 @@ def fetch_sales():
         locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
         valor_formatado.append(locale.currency(valor, grouping=True))
 
-
-    # Calcular a altura dos gráficos
-    chart_height = calculate_chart_height(len(produtos))
-
-
     # Criar uma planilha Excel em memória
     workbook = openpyxl.Workbook()
+    data_sheet = workbook.active
+    data_sheet.title = 'Dados de Vendas'
 
-    # Primeira aba para o gráfico
-    chart_sheet = workbook.active
-    chart_sheet.title = 'Gráficos'
-
-    # Segunda aba para os dados
-    data_sheet = workbook.create_sheet(title='Dados de Vendas')
-
-    # Escrever o cabeçalho do XLSX na segunda aba
+    # Escrever o cabeçalho do XLSX
     data_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
 
-    # Escrever os dados no XLSX na segunda aba
+    # Escrever os dados no XLSX
     for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
         data_sheet.append([prod, qtd, val, val_fmt])
 
-    # Adicionar gráfico de barras para a quantidade
-    chart_qtd = BarChart()
-    chart_qtd.type = "bar"
-    chart_qtd.style = 10
+    # Ajustar a largura das colunas na aba de dados
+    adjust_column_width(data_sheet)
 
-    categories_ref = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
-    qtd_ref = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
+    # Dividir os dados em partes de 100 itens
+    chunk_size = 75
+    num_chunks = (len(produtos) + chunk_size - 1) // chunk_size
 
-    chart_qtd.add_data(qtd_ref, titles_from_data=True)
-    chart_qtd.set_categories(categories_ref)
+    for i in range(num_chunks):
+        start_index = i * chunk_size + 2  # +2 para pular o cabeçalho
+        end_index = min((i + 1) * chunk_size + 1, len(produtos) + 1)  # +1 para incluir o último item
 
-    # Centralizar os rótulos no centro da barra
-    for series in chart_qtd.series:
-        series.dLbls = DataLabelList()
-        series.dLbls.showVal = True
-        series.dLbls.showCatName = False
-        series.dLbls.dLblPos = 'outEnd'  # Posicionar no centro da barra
+        create_chart_sheet(workbook, data_sheet, start_index, end_index, i + 1)
 
-    chart_qtd.y_axis.majorGridlines = None
+    # Adicionar a tabela de vendas final na última aba
+    final_sheet = workbook.create_sheet(title='Resumo Final')
+    final_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
+    for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
+        final_sheet.append([prod, qtd, val, val_fmt])
 
-    # Adicionar a legenda
-    chart_qtd.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
-
-    # Ajustar tamanho do gráfico
-    chart_qtd.width = 40  # Ajuste conforme necessário
-    chart_qtd.height = chart_height  # Ajuste conforme necessário
-
-    chart_qtd.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
-    chart_qtd.gapWidth = 100  # Ajustar o espaçamento entre as barras
-
-    chart_sheet.add_chart(chart_qtd, "B2")
-
-    # Adicionar gráfico de barras para o valor
-    chart_valor = BarChart()
-    chart_valor.type = "bar"
-    chart_valor.style = 10
-
-    valor_ref = Reference(data_sheet, min_col=3, min_row=1, max_row=len(valor_produto) + 1)
-
-    chart_valor.add_data(valor_ref, titles_from_data=True)
-    chart_valor.set_categories(categories_ref)
-
-    # Centralizar os rótulos no centro da barra
-    for series in chart_valor.series:
-        series.dLbls = DataLabelList()
-        series.dLbls.showVal = True
-        series.dLbls.showCatName = False
-        series.dLbls.dLblPos = 'outEnd'  # Posicionar no centro da barra
-
-    chart_valor.y_axis.majorGridlines = None
-
-    # Adicionar a legenda
-    chart_valor.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
-
-    # Ajustar tamanho do gráfico
-    chart_valor.width = 40  # Ajuste conforme necessário
-    chart_valor.height = chart_height  # Ajuste conforme necessário
-
-    chart_valor.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
-    chart_valor.gapWidth = 100  # Ajustar o espaçamento entre as barras
-
-    chart_sheet.add_chart(chart_valor, "U2")  # Ajustar a posição para não sobrepor o gráfico de quantidade
-
-    # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
-    chart_sheet.sheet_view.showGridLines = False
+    # Ajustar a largura das colunas na aba final
+    adjust_column_width(final_sheet)
 
     # Salvar o arquivo XLSX em memória usando BytesIO
     output = io.BytesIO()
