@@ -3,11 +3,10 @@ import locale
 import openpyxl
 
 from decimal import Decimal
-from datetime import datetime  
+from datetime import datetime
 from flask import abort, request, make_response, Blueprint
 from openpyxl.chart import BarChart, Reference
-from openpyxl.chart.label import DataLabel
-from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.label import DataLabel, DataLabelList
 
 from Service.generate_sales_graph import generatesalesgraph
 
@@ -17,105 +16,133 @@ REQUEST_API = Blueprint('graph', __name__)
 
 @REQUEST_API.route('/fetch_sales', methods=['GET'])
 def fetch_sales():
-  dt_inicial = request.args.get('dt_inicial')
-  dt_final = request.args.get('dt_final')
-  idstatus = request.args.get('idstatus')
-  idcategoria = request.args.get('idcategoria')
-  idusuario = request.args.get('idusuario')
+    dt_inicial = request.args.get('dt_inicial')
+    dt_final = request.args.get('dt_final')
+    idstatus = request.args.get('idstatus')
+    idcategoria = request.args.get('idcategoria')
+    idusuario = request.args.get('idusuario')
 
-  if not dt_inicial and not dt_final and not idstatus and not idcategoria and not idusuario:
-      abort(400, description="Parâmetros insuficientes")
+    if not dt_inicial and not dt_final and not idstatus and not idcategoria and not idusuario:
+        abort(400, description="Parâmetros insuficientes")
 
-  response = generatesalesgraph(dt_inicial, dt_final, idstatus, idcategoria, idusuario)
+    response = generatesalesgraph(dt_inicial, dt_final, idstatus, idcategoria, idusuario)
 
-  produtos = []
-  quantidade = []
-  valor_produto = []
-  valor_formatado = []
+    produtos = []
+    quantidade = []
+    valor_produto = []
+    valor_formatado = []
 
-  for item in response:
-    descricao = item['descricao']
-    modelo = item['modelo']
-    qtd = int(Decimal(item['qtd']))
-    valor = float(Decimal(item['valor']))
+    for item in response:
+        descricao = item['descricao']
+        modelo = item['modelo']
+        qtd = int(Decimal(item['qtd']))
+        valor = float(Decimal(item['valor']))
 
-    produtos.append(descricao + ' - ' + modelo)
-    quantidade.append(qtd)
-    valor_produto.append(valor)
+        produtos.append(descricao + ' - ' + modelo)
+        quantidade.append(qtd)
+        valor_produto.append(valor)
 
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-    valor_formatado.append(locale.currency(valor, grouping=True))
+        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+        valor_formatado.append(locale.currency(valor, grouping=True))
 
-  # Criar uma planilha Excel em memória
-  workbook = openpyxl.Workbook()
+    # Criar uma planilha Excel em memória
+    workbook = openpyxl.Workbook()
 
-  # Primeira aba para o gráfico
-  chart_sheet = workbook.active
+    # Primeira aba para o gráfico
+    chart_sheet = workbook.active
+    chart_sheet.title = 'Gráficos'
 
-  # Segunda aba para os dados
-  data_sheet = workbook.create_sheet(title='Dados de Vendas')
+    # Segunda aba para os dados
+    data_sheet = workbook.create_sheet(title='Dados de Vendas')
 
-  # Escrever o cabeçalho do XLSX na segunda aba
-  data_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
+    # Escrever o cabeçalho do XLSX na segunda aba
+    data_sheet.append(['Produto', 'Quantidade', 'Valor', 'Valor Formatado'])
 
-  # Escrever os dados no XLSX na segunda aba
-  for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
-    data_sheet.append([prod, qtd, val, val_fmt])
+    # Escrever os dados no XLSX na segunda aba
+    for prod, qtd, val, val_fmt in zip(produtos, quantidade, valor_produto, valor_formatado):
+        data_sheet.append([prod, qtd, val, val_fmt])
 
-  # Adicionar gráfico de barras horizontais na primeira aba
-  chart = BarChart()
-  chart.type = "bar"
-  chart.style = 11
-  chart.shape = 4  # Estilo de barra
+    # Adicionar gráfico de barras para a quantidade
+    chart_qtd = BarChart()
+    chart_qtd.type = "bar"
+    chart_qtd.style = 11
+    chart_qtd.shape = 4  # Estilo de barra
 
-  qtd = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
-  vlr = Reference(data_sheet, min_col=3, min_row=1, max_row=len(valor_produto) + 1)
+    categories_ref = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
+    qtd_ref = Reference(data_sheet, min_col=2, min_row=1, max_row=len(quantidade) + 1)
 
-  categories = Reference(data_sheet, min_col=1, min_row=2, max_row=len(produtos) + 1)
+    chart_qtd.add_data(qtd_ref, titles_from_data=True)
+    chart_qtd.set_categories(categories_ref)
 
-  chart.add_data(qtd, titles_from_data=True,from_rows=False)
-  chart.add_data(vlr, titles_from_data=True,from_rows=False)
+    # Centralizar os rótulos no centro da barra
+    for series in chart_qtd.series:
+        series.dLbls = DataLabelList()
+        series.dLbls.showVal = True
+        series.dLbls.showCatName = False
+        series.dLbls.dLblPos = 'outEnd'  # Posicionar no centro da barra
 
-  chart.set_categories(categories)
-  
-  # Centralizar os rótulos no centro da barra
-  for series in chart.series:
-    series.dLbls = DataLabelList()
-    series.dLbls.showVal = True
-    series.dLbls.showCatName = False
-    series.dLbls.dLblPos = 'ctr'  # Posicionar no centro da barra
-    
+    chart_qtd.y_axis.majorGridlines = None
 
-  chart.y_axis.majorGridlines = None
+    # Adicionar a legenda
+    chart_qtd.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
 
-  # Adicionar a legenda
-  chart.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
+    # Ajustar tamanho do gráfico
+    chart_qtd.width = 40  # Ajuste conforme necessário
+    chart_qtd.height = 15  # Ajuste conforme necessário
 
-  # Ajustar tamanho do gráfico
-  chart.width = 30  # Ajuste conforme necessário
-  chart.height = 15  # Ajuste conforme necessário
+    chart_qtd.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
+    chart_qtd.gapWidth = 100  # Ajustar o espaçamento entre as barras
 
-  chart.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
-  chart.gapWidth = 100  # Ajustar o espaçamento entre as barras
+    chart_sheet.add_chart(chart_qtd, "B2")
 
-  chart_sheet.add_chart(chart, "B2")
+    # Adicionar gráfico de barras para o valor
+    chart_valor = BarChart()
+    chart_valor.type = "bar"
+    chart_valor.style = 11
+    chart_valor.shape = 4  # Estilo de barra
 
-  # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
-  chart_sheet.sheet_view.showGridLines = False
+    valor_ref = Reference(data_sheet, min_col=3, min_row=1, max_row=len(valor_produto) + 1)
 
-  # Salvar o arquivo XLSX em memória usando BytesIO
-  output = io.BytesIO()
-  workbook.save(output)
-  xlsx_data = output.getvalue()
-  output.close()
+    chart_valor.add_data(valor_ref, titles_from_data=True)
+    chart_valor.set_categories(categories_ref)
 
-  # Criar um nome de arquivo com a data atual
-  current_date = datetime.now().strftime('%d-%m-%Y')  # Formato: '26-07-2024'
-  filename = f'Relatorio-Vendas {current_date}.xlsx'
+    # Centralizar os rótulos no centro da barra
+    for series in chart_valor.series:
+        series.dLbls = DataLabelList()
+        series.dLbls.showVal = True
+        series.dLbls.showCatName = False
+        series.dLbls.dLblPos = 'outEnd'  # Posicionar no centro da barra
 
-  # Criar uma resposta Flask para download do arquivo XLSX
-  response = make_response(xlsx_data)
-  response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-  response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    chart_valor.y_axis.majorGridlines = None
 
-  return response
+    # Adicionar a legenda
+    chart_valor.legend.position = "r"  # Posições possíveis: 'r' (direita), 't' (acima), 'l' (esquerda), 'b' (abaixo)
+
+    # Ajustar tamanho do gráfico
+    chart_valor.width = 40  # Ajuste conforme necessário
+    chart_valor.height = 15  # Ajuste conforme necessário
+
+    chart_valor.barWidth = 15  # Ajustar a largura das barras para criar espaço extra
+    chart_valor.gapWidth = 100  # Ajustar o espaçamento entre as barras
+
+    chart_sheet.add_chart(chart_valor, "T2")  # Ajustar a posição para não sobrepor o gráfico de quantidade
+
+    # Remover grades vazias e ocultar linhas e colunas da planilha de gráficos
+    chart_sheet.sheet_view.showGridLines = False
+
+    # Salvar o arquivo XLSX em memória usando BytesIO
+    output = io.BytesIO()
+    workbook.save(output)
+    xlsx_data = output.getvalue()
+    output.close()
+
+    # Criar um nome de arquivo com a data atual
+    current_date = datetime.now().strftime('%d-%m-%Y')  # Formato: '26-07-2024'
+    filename = f'Relatorio-Vendas {current_date}.xlsx'
+
+    # Criar uma resposta Flask para download do arquivo XLSX
+    response = make_response(xlsx_data)
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+    return response
