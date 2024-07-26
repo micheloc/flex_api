@@ -99,9 +99,13 @@ def fetch_sales():
   xlsx_data = output.getvalue()
   output.close()
 
+  # Criar um nome de arquivo com a data atual
+  current_date = datetime.now().strftime('%d-%m-%Y')  # Formato: '26-07-2024'
+  filename = f'Relatorio-Vendas {current_date}.xlsx'
+
   # Criar uma resposta Flask para download do arquivo XLSX
   response = make_response(xlsx_data)
-  response.headers['Content-Disposition'] = 'attachment; filename=sales_data.xlsx'
+  response.headers['Content-Disposition'] = f'attachment; filename={filename}'
   response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
   return response
